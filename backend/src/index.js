@@ -1,50 +1,48 @@
-import express from 'express';
-import dotenv from 'dotenv';
-import mongoose from 'mongoose';
-import cors from 'cors';
-import {ApolloServer} from '@apollo/server';
-import {expressMiddleware} from '@as-integrations/express5';
+import express from "express";
+import dotenv from "dotenv";
+import mongoose from "mongoose";
+//import cors from 'cors';
+import { ApolloServer } from "@apollo/server";
+import { expressMiddleware } from "@as-integrations/express5";
+import { typeDefs, resolvers } from "./graphql/schema.js";
+import { authMiddleware } from "./middleware/auth.js";
 
-
-dotenv.config();  
+dotenv.config();
 
 const app = express();
 
-mongoose.connect(process.env.MONGO_URI).then(() => {
-    console.log("Connected to MongoDB");
-}).catch((err) => {
-    console.error("Error connecting to MongoDB", err);
-});
-
-const typeDefs = `
-    type Query{
-        hello: String
-    }
-`;
-
-const resolvers = {
-    Query: {
-        hello: () => 'Hello Banking App Backend!',
-    },
-};
+app.use(express.json());
 
 const server = new ApolloServer({
-    typeDefs,
-    resolvers,
+  typeDefs,
+  resolvers,
 });
 
 const startServer = async () => {
-    await server.start();
-    app.use(
-        '/graphql',
-        cors(),
-        express.json(),
-        expressMiddleware(server)
-    ); 
+  await server.start();
 
-    const PORT = process.env.PORT || 4000;
-    app.listen(PORT, () => {
+  app.use(
+    "/graphql",
+    expressMiddleware(server, {
+      context: async ({ req, res }) => {
+        authMiddleware(req, res, () => {});
+        return { user: req.user };
+      },
+    })
+  );
+
+  mongoose
+    .connect(process.env.MONGO_URI)
+    .then(() => {
+      console.log("Connected to MongoDB");
+      const PORT = process.env.PORT || 4000;
+      app.listen(PORT, () => {
         console.log(`Server is running on http://localhost:${PORT}/graphql`);
+      });
+    })
+    .catch((err) => {
+      console.error("Error connecting to MongoDB", err);
     });
-} 
+
+};
 startServer();
