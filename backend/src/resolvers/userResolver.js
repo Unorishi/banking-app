@@ -79,7 +79,7 @@ export const userResolver = {
 
         const isMatch = await user.comparePassword(password)
         if (!isMatch) throw new Error("Invalid email or password")
-            const token = jwt.sign({ userId: user.id, role: user.role}, process.env.JWT_SECRET, {expiresIn: "1h"
+            const token = jwt.sign({ userId: user.id, role: user.role}, process.env.JWT_SECRET, {expiresIn: "3h"
         })
         return {token, user}
     }
