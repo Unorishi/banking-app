@@ -11,8 +11,12 @@ const accountCreationSchema = Joi.object({
 const transactionSchema = Joi.object({
     amount: Joi.number().positive().required(),
 });
-
+    
 export const createAccount = async (req,res)=>{
+    console.log("Creating account for user:", req.body);    
+    console.log("token",req.headers.authorization);
+    
+    
     try{
         const {error} = accountCreationSchema.validate(req.body);
         if(error) {
@@ -40,7 +44,23 @@ export const getAccounts = async (req,res)=>{
         res.status(500).json({error:"Error fetching accounts: "+ err.message});
     }
 }
-
+export const getAccountById = async (req, res) => {
+  try {
+    const account = await Account.findById(req.params.id);
+    if (!account) {
+      return res.status(404).json({ error: "Account not found." });
+    }
+    
+    // Check if user owns this account
+    if (account.userId.toString() !== req.user.userId) {
+      return res.status(403).json({ error: "Forbidden: You do not own this account." });
+    }
+    
+    res.status(200).json(account);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch account: " + err.message });
+    }
+};
 export const deposit = async (req,res)=>{
     try {
         const { error } = transactionSchema.validate(req.body);

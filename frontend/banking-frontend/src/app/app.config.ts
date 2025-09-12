@@ -1,38 +1,91 @@
-import { ApplicationConfig, provideZoneChangeDetection, isDevMode } from '@angular/core';
+// src/app/app.config.ts
+import { ApplicationConfig, isDevMode, inject } from '@angular/core';
 import { provideRouter } from '@angular/router';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 
-import { routes } from './app.routes';
-
+// NgRx
 import { provideStore } from '@ngrx/store';
 import { provideEffects } from '@ngrx/effects';
 import { provideStoreDevtools } from '@ngrx/store-devtools';
 import { provideRouterStore } from '@ngrx/router-store';
 
-import { APOLLO_OPTIONS, provideApollo } from 'apollo-angular';
-import { ApolloClientOptions, InMemoryCache } from '@apollo/client/core';
+// Apollo GraphQL
+import { provideApollo } from 'apollo-angular';
+import { InMemoryCache } from '@apollo/client/core';
 import { HttpLink } from 'apollo-angular/http';
+import { setContext } from '@apollo/client/link/context';
 
-// Apollo client factory
-import { inject } from '@angular/core';
+// App imports
+import { routes } from './app.routes';
+import { authInterceptor } from './interceptors/auth.interceptor';
 
-export function createApollo(): ApolloClientOptions<any> {
-  const httpLink = inject(HttpLink);
-  return {
-    link: httpLink.create({ uri: 'http://localhost:4000/graphql' }), // 👈 update to your backend URL
-    cache: new InMemoryCache(),
-  };
-}
+// NgRx Store
+import { authReducer } from './store/auth/auth.reducer';
+import { AuthEffects } from './store/auth/auth.effects';
+
+// GraphQL configuration function
+const createApolloProvider = () => {
+  return provideApollo(() => {
+    const httpLink = inject(HttpLink);
+    
+    const authLink = setContext((_, { headers }) => {
+      const token = localStorage.getItem('authToken');
+      
+      return {
+        headers: {
+          ...headers,
+          authorization: token ? `Bearer ${token}` : '',
+        }
+      };
+    });
+
+    return {
+      link: authLink.concat(httpLink.create({
+        uri: 'http://localhost:4000/graphql',
+      })),
+      cache: new InMemoryCache(),
+      defaultOptions: {
+        watchQuery: {
+          errorPolicy: 'all'
+        },
+        query: {
+          errorPolicy: 'all'
+        }
+      }
+    };
+  });
+};
 
 export const appConfig: ApplicationConfig = {
   providers: [
-    provideZoneChangeDetection({ eventCoalescing: true }),
+    // Router
     provideRouter(routes),
-    provideHttpClient(),
-    provideStore({}), // register reducers here
-    provideApollo(createApollo),
-    provideStoreDevtools({ maxAge: 25, logOnly: !isDevMode() }),
+    
+    // HTTP Client with interceptors
+    provideHttpClient(withInterceptors([authInterceptor])),
+    
+    // NgRx Store Configuration
+    provideStore({
+      auth: authReducer
+    }),
+    
+    // NgRx Effects
+    provideEffects([AuthEffects]),
+    
+    // NgRx Router Store
     provideRouterStore(),
-    HttpLink,
+    
+    // NgRx DevTools (only in development)
+    provideStoreDevtools({
+      maxAge: 25,
+      logOnly: !isDevMode(),
+      autoPause: true,
+      trace: false,
+      traceLimit: 75,
+      connectInZone: true
+    }),
+    
+    // Apollo GraphQL
+    createApolloProvider()
   ]
 };
