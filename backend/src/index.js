@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 import mongoose from "mongoose";
 import accountRoutes from "./routes/accountRoutes.js";
 import loanRoutes from "./routes/loanRoutes.js";
-//import cors from 'cors';
+import cors from 'cors';
 import { ApolloServer } from "@apollo/server";
 import { expressMiddleware } from "@as-integrations/express5";
 import { typeDefs, resolvers } from "./graphql/schema.js";
@@ -14,7 +14,7 @@ dotenv.config();
 const app = express();
 
 app.use(express.json());
-
+app.use(cors());
 const server = new ApolloServer({
   typeDefs,
   resolvers,
