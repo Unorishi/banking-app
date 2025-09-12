@@ -81,6 +81,8 @@ export const userResolver = {
         if (!isMatch) throw new Error("Invalid email or password")
             const token = jwt.sign({ userId: user.id, role: user.role}, process.env.JWT_SECRET, {expiresIn: "3h"
         })
+        console.log("User logged in:", user.email );
+        
         return {token, user}
     }
 
